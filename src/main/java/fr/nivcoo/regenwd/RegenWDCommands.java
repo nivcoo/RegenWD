@@ -55,7 +55,7 @@ public class RegenWDCommands implements CommandExecutor {
 
 					if (args[0].equalsIgnoreCase("end")) {
 						worldNameBroadcast = "End";
-						extraMessageBroadcast = "Un dragon vient de spawn !";
+						extraMessageBroadcast = "";
 						worldName = "world_the_end";
 						worldEnvironment = World.Environment.THE_END;
 
