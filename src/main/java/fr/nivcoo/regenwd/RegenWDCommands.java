@@ -29,11 +29,11 @@ public class RegenWDCommands implements CommandExecutor {
                     + "Menu d'aide" + ChatColor.DARK_GRAY + "]" + ChatColor.GRAY + "§m------------------");
             p.sendMessage(ChatColor.GOLD + "/regenwd end " + ChatColor.YELLOW + "pour regen l'end");
             p.sendMessage(ChatColor.GOLD + "/regenwd nether " + ChatColor.YELLOW + "pour regen le nether");
+            p.sendMessage(ChatColor.GOLD + "/regenwd resources " + ChatColor.YELLOW + "pour regen le monde ressource");
+            p.sendMessage(ChatColor.GOLD + "/regenwd resources_2 " + ChatColor.YELLOW + "pour regen le monde ressource amiral");
             p.sendMessage(ChatColor.GRAY + "§m----------------------------------------------");
 
         }
-
-        return;
     }
 
     @Override
@@ -43,7 +43,7 @@ public class RegenWDCommands implements CommandExecutor {
                 if (args.length == 0) {
                     help(sender);
                     return true;
-                } else if (args.length >= 1) {
+                } else {
                     String worldNameBroadcast = null;
                     String extraMessageBroadcast = "";
                     String worldName = null;
@@ -64,6 +64,18 @@ public class RegenWDCommands implements CommandExecutor {
                         worldEnvironment = World.Environment.NETHER;
 
                         commands.add("netherportal reload");
+                    } else if (args[0].equalsIgnoreCase("resources")) {
+
+                        worldNameBroadcast = "Ressources";
+                        worldName = "resources";
+                        worldEnvironment = World.Environment.NORMAL;
+
+                    } else if (args[0].equalsIgnoreCase("resources_2")) {
+
+                        worldNameBroadcast = "Ressources Amiral";
+                        worldName = "resources_2";
+                        worldEnvironment = World.Environment.NORMAL;
+
                     }
 
                     if (worldName != null) {
@@ -81,13 +93,9 @@ public class RegenWDCommands implements CommandExecutor {
                         File worldFolder = new File(worldName);
                         try {
                             FileUtils.deleteDirectory(worldFolder);
-                        } catch (IOException e) {
-
-                        }
-                        try {
                             worldFolder.mkdir();
                             copyDirectory(folderSave + File.separator + worldName, worldName);
-                        } catch (IOException e) {
+                        } catch (IOException ignored) {
 
                         }
                         World customWorld = new WorldCreator(worldName).environment(worldEnvironment).createWorld();
@@ -113,7 +121,7 @@ public class RegenWDCommands implements CommandExecutor {
                     source.toString().substring(sourceDirectoryLocation.length()));
             try {
                 Files.copy(source, destination);
-            } catch (IOException e) {
+            } catch (IOException ignored) {
             }
         });
     }
