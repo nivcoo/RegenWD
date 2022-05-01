@@ -1,8 +1,8 @@
 package fr.nivcoo.regenwd;
 
-import net.md_5.bungee.api.ChatColor;
 import org.apache.commons.io.FileUtils;
 import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
 import org.bukkit.World;
 import org.bukkit.WorldCreator;
 import org.bukkit.command.Command;
@@ -64,22 +64,12 @@ public class RegenWDCommands implements CommandExecutor {
                         worldEnvironment = World.Environment.NETHER;
 
                         commands.add("netherportal reload");
-                    } else if (args[0].equalsIgnoreCase("resources")) {
-
-                        worldNameBroadcast = "Ressources";
-                        worldName = "resources";
-                        worldEnvironment = World.Environment.NORMAL;
-
-                    } else if (args[0].equalsIgnoreCase("resources_2")) {
-
-                        worldNameBroadcast = "Ressources Amiral";
-                        worldName = "resources_2";
-                        worldEnvironment = World.Environment.NORMAL;
-
                     }
 
                     if (worldName != null) {
                         World world = Bukkit.getWorld(worldName);
+                        if (world == null)
+                            return false;
                         List<Player> playerList = Bukkit.getOnlinePlayers().stream()
                                 .filter(onlinePlayer -> onlinePlayer.getWorld() == world).collect(Collectors.toList());
                         for (Player player : playerList) {
@@ -90,10 +80,9 @@ public class RegenWDCommands implements CommandExecutor {
 
                         Bukkit.unloadWorld(world, true);
 
-                        File worldFolder = new File(worldName);
                         try {
-                            FileUtils.deleteDirectory(worldFolder);
-                            worldFolder.mkdir();
+                            FileUtils.deleteDirectory(new File(worldName));
+                            new File(worldName).mkdir();
                             copyDirectory(folderSave + File.separator + worldName, worldName);
                         } catch (IOException ignored) {
 
@@ -107,7 +96,6 @@ public class RegenWDCommands implements CommandExecutor {
                         if (customWorld != null)
                             Bukkit.broadcastMessage(
                                     "§7[§c§lES§7] Le monde §a" + worldNameBroadcast + " §7vient d'être régénéré ! " + extraMessageBroadcast);
-
                     }
                 }
             }
