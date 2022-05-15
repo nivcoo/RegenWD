@@ -1,5 +1,6 @@
 package fr.nivcoo.regenwd;
 
+import com.onarandombox.MultiverseCore.api.MVWorldManager;
 import org.apache.commons.io.FileUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -78,24 +79,35 @@ public class RegenWDCommands implements CommandExecutor {
                             player.performCommand("is go");
                         }
 
-                        Bukkit.unloadWorld(world, true);
+                        RegenWD regenWD = RegenWD.get();
 
-                        try {
-                            FileUtils.deleteDirectory(new File(worldName));
-                            new File(worldName).mkdir();
-                            copyDirectory(folderSave + File.separator + worldName, worldName);
-                        } catch (IOException ignored) {
+                        MVWorldManager worldManager = regenWD.getMultiverseCore().getMVWorldManager();
+
+                        if (worldManager.unloadWorld(worldName, true)) {
+
+                            Bukkit.getLogger().info("Successfully unloaded world " + worldName);
+
+                            File file = new File(worldName);
+
+                            try {
+                                FileUtils.deleteDirectory(file);
+                                file.mkdir();
+                                copyDirectory(folderSave + File.separator + worldName, worldName);
+                            } catch (IOException ignored) {
+
+                            }
+
+                            World customWorld = new WorldCreator(worldName).environment(worldEnvironment).createWorld();
+
+                            ConsoleCommandSender console = Bukkit.getServer().getConsoleSender();
+                            for (String command : commands)
+                                Bukkit.dispatchCommand(console, command);
+
+                            if (customWorld != null)
+                                Bukkit.broadcastMessage(
+                                        "§7[§c§lES§7] Le monde §a" + worldNameBroadcast + " §7vient d'être régénéré ! " + extraMessageBroadcast);
 
                         }
-                        World customWorld = new WorldCreator(worldName).environment(worldEnvironment).createWorld();
-
-                        ConsoleCommandSender console = Bukkit.getServer().getConsoleSender();
-                        for (String command : commands)
-                            Bukkit.dispatchCommand(console, command);
-
-                        if (customWorld != null)
-                            Bukkit.broadcastMessage(
-                                    "§7[§c§lES§7] Le monde §a" + worldNameBroadcast + " §7vient d'être régénéré ! " + extraMessageBroadcast);
                     }
                 }
             }
