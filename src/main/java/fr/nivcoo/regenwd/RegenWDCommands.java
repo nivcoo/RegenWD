@@ -5,7 +5,6 @@ import org.apache.commons.io.FileUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.World;
-import org.bukkit.WorldCreator;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -51,18 +50,15 @@ public class RegenWDCommands implements CommandExecutor {
                     String folderSave = "WorldSaves";
                     List<String> commands = new ArrayList<>();
                     commands.add("hd reload");
-                    World.Environment worldEnvironment = null;
 
                     if (args[0].equalsIgnoreCase("end")) {
                         worldNameBroadcast = "End";
                         extraMessageBroadcast = "";
                         worldName = "world_the_end";
-                        worldEnvironment = World.Environment.THE_END;
 
                     } else if (args[0].equalsIgnoreCase("nether")) {
                         worldNameBroadcast = "Nether";
                         worldName = "world_nether";
-                        worldEnvironment = World.Environment.NETHER;
 
                         commands.add("netherportal reload");
                     }
@@ -97,17 +93,19 @@ public class RegenWDCommands implements CommandExecutor {
 
                             }
 
-                            World customWorld = new WorldCreator(worldName).environment(worldEnvironment).createWorld();
+                            boolean loadWorld = worldManager.loadWorld(worldName);
 
                             ConsoleCommandSender console = Bukkit.getServer().getConsoleSender();
                             for (String command : commands)
                                 Bukkit.dispatchCommand(console, command);
 
-                            if (customWorld != null)
+                            if (loadWorld)
                                 Bukkit.broadcastMessage(
                                         "§7[§c§lES§7] Le monde §a" + worldNameBroadcast + " §7vient d'être régénéré ! " + extraMessageBroadcast);
 
                         }
+
+
                     }
                 }
             }
