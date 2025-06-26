@@ -1,8 +1,9 @@
 package fr.nivcoo.regenwd;
 
-import com.onarandombox.MultiverseCore.MultiverseCore;
+
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.mvplugins.multiverse.core.MultiverseCore;
 
 
 public class RegenWD extends JavaPlugin {

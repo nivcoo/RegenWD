@@ -1,6 +1,5 @@
 package fr.nivcoo.regenwd;
 
-import com.onarandombox.MultiverseCore.api.MVWorldManager;
 import org.apache.commons.io.FileUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -9,119 +8,156 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
-import org.bukkit.entity.Player;
+import org.mvplugins.multiverse.core.MultiverseCore;
+import org.mvplugins.multiverse.core.world.LoadedMultiverseWorld;
+import org.mvplugins.multiverse.core.world.WorldManager;
+import org.mvplugins.multiverse.core.world.options.UnloadWorldOptions;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
+import java.io.UncheckedIOException;
+import java.nio.file.*;
+import java.util.*;
+import java.util.stream.Stream;
 
 public class RegenWDCommands implements CommandExecutor {
 
-    public void help(CommandSender p) {
-
-        if (p.hasPermission("regenwd.commands")) {
-            p.sendMessage(ChatColor.GRAY + "§m------------------" + ChatColor.DARK_GRAY + "[" + ChatColor.GOLD
+    private void help(CommandSender sender) {
+        if (sender.hasPermission("regenwd.commands")) {
+            sender.sendMessage(ChatColor.GRAY + "§m------------------" + ChatColor.DARK_GRAY + "[" + ChatColor.GOLD
                     + "Menu d'aide" + ChatColor.DARK_GRAY + "]" + ChatColor.GRAY + "§m------------------");
-            p.sendMessage(ChatColor.GOLD + "/regenwd end " + ChatColor.YELLOW + "pour regen l'end");
-            p.sendMessage(ChatColor.GOLD + "/regenwd nether " + ChatColor.YELLOW + "pour regen le nether");
-            p.sendMessage(ChatColor.GOLD + "/regenwd resources " + ChatColor.YELLOW + "pour regen le monde ressource");
-            p.sendMessage(ChatColor.GOLD + "/regenwd resources_2 " + ChatColor.YELLOW + "pour regen le monde ressource amiral");
-            p.sendMessage(ChatColor.GRAY + "§m----------------------------------------------");
-
+            sender.sendMessage(ChatColor.GOLD + "/regenwd end " + ChatColor.YELLOW + "pour regen l'end");
+            sender.sendMessage(ChatColor.GOLD + "/regenwd nether " + ChatColor.YELLOW + "pour regen le nether");
+            sender.sendMessage(ChatColor.GOLD + "/regenwd resources " + ChatColor.YELLOW + "pour regen le monde ressource");
+            sender.sendMessage(ChatColor.GOLD + "/regenwd resources_2 " + ChatColor.YELLOW + "pour regen le monde ressource amiral");
+            sender.sendMessage(ChatColor.GRAY + "§m----------------------------------------------");
         }
     }
 
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String msg, String[] args) {
-        if (cmd.getName().equalsIgnoreCase("regenwd")) {
-            if (sender.hasPermission("regenwd.commands")) {
-                if (args.length == 0) {
-                    help(sender);
-                    return true;
-                } else {
-                    String worldNameBroadcast = null;
-                    String extraMessageBroadcast = "";
-                    String worldName = null;
-                    String folderSave = "WorldSaves";
-                    List<String> commands = new ArrayList<>();
-                    commands.add("hd reload");
+        if (!cmd.getName().equalsIgnoreCase("regenwd") || !sender.hasPermission("regenwd.commands")) {
+            return false;
+        }
 
-                    if (args[0].equalsIgnoreCase("end")) {
-                        worldNameBroadcast = "End";
-                        extraMessageBroadcast = "";
-                        worldName = "world_the_end";
+        if (args.length == 0) {
+            help(sender);
+            return true;
+        }
 
-                    } else if (args[0].equalsIgnoreCase("nether")) {
-                        worldNameBroadcast = "Nether";
-                        worldName = "world_nether";
+        String worldName;
+        String worldNameBroadcast;
+        String folderSave = "WorldSaves";
+        List<String> commands = new ArrayList<>(List.of("hd reload"));
 
-                        commands.add("netherportal reload");
-                    }
-
-                    if (worldName != null) {
-                        World world = Bukkit.getWorld(worldName);
-                        if (world == null)
-                            return false;
-                        List<Player> playerList = Bukkit.getOnlinePlayers().stream()
-                                .filter(onlinePlayer -> onlinePlayer.getWorld() == world).collect(Collectors.toList());
-                        for (Player player : playerList) {
-                            player.sendMessage(
-                                    "§7[§c§lES§7] Le monde se régénére ! Vous avez été téléporté sur votre île !");
-                            player.performCommand("is go");
-                        }
-
-                        RegenWD regenWD = RegenWD.get();
-
-                        MVWorldManager worldManager = regenWD.getMultiverseCore().getMVWorldManager();
-
-                        if (worldManager.unloadWorld(worldName, true)) {
-
-                            Bukkit.getLogger().info("Successfully unloaded world " + worldName);
-
-                            File file = new File(worldName);
-
-                            try {
-                                FileUtils.deleteDirectory(file);
-                                file.mkdir();
-                                copyDirectory(folderSave + File.separator + worldName, worldName);
-                            } catch (IOException ignored) {
-
-                            }
-
-                            boolean loadWorld = worldManager.loadWorld(worldName);
-
-                            ConsoleCommandSender console = Bukkit.getServer().getConsoleSender();
-                            for (String command : commands)
-                                Bukkit.dispatchCommand(console, command);
-
-                            if (loadWorld)
-                                Bukkit.broadcastMessage(
-                                        "§7[§c§lES§7] Le monde §a" + worldNameBroadcast + " §7vient d'être régénéré ! " + extraMessageBroadcast);
-
-                        }
-
-
-                    }
-                }
+        switch (args[0].toLowerCase()) {
+            case "end" -> {
+                worldName = "world_the_end";
+                worldNameBroadcast = "End";
+            }
+            case "nether" -> {
+                worldName = "world_nether";
+                worldNameBroadcast = "Nether";
+                commands.add("netherportal reload");
+            }
+            case "resources" -> {
+                worldName = "ressources";
+                worldNameBroadcast = "Ressources";
+            }
+            case "resources_2" -> {
+                worldName = "ressources_2";
+                worldNameBroadcast = "Ressources_2";
+            }
+            default -> {
+                help(sender);
+                return true;
             }
         }
-        return false;
+
+        World bukkitWorld = Bukkit.getWorld(worldName);
+        if (bukkitWorld == null) {
+            sender.sendMessage(ChatColor.RED + "Monde introuvable : " + worldName);
+            return true;
+        }
+
+
+        Bukkit.getOnlinePlayers().stream()
+                .filter(player -> player.getWorld().equals(bukkitWorld))
+                .forEach(player -> {
+                    player.sendMessage("§7[§c§lES§7] Le monde se régénère ! Vous avez été téléporté sur votre île !");
+                    player.performCommand("is go");
+                });
+
+
+        RegenWD plugin = RegenWD.get();
+        MultiverseCore mvCore = plugin.getMultiverseCore();
+        if (mvCore == null) {
+            sender.sendMessage(ChatColor.RED + "Multiverse-Core n'est pas chargé !");
+            return true;
+        }
+
+        WorldManager worldManager = mvCore.getApi().getWorldManager();
+        LoadedMultiverseWorld loadedWorld = worldManager.getLoadedWorld(worldName).getOrNull();
+
+        if (loadedWorld == null) {
+            sender.sendMessage(ChatColor.RED + "Le monde n'est pas chargé via Multiverse !");
+            return true;
+        }
+
+        UnloadWorldOptions options = UnloadWorldOptions
+                .world(loadedWorld)
+                .saveBukkitWorld(true)
+                .unloadBukkitWorld(true);
+
+        String finalWorldName = worldName;
+        worldManager.unloadWorld(options).onFailure(failure -> {
+            sender.sendMessage(ChatColor.RED + "Échec du déchargement : " + failure);
+        }).onSuccess(success -> {
+            Bukkit.getLogger().info("Monde " + finalWorldName + " déchargé avec succès.");
+
+            File worldFolder = new File(finalWorldName);
+            try {
+                FileUtils.deleteDirectory(worldFolder);
+                worldFolder.mkdir();
+                copyDirectory(folderSave + File.separator + finalWorldName, finalWorldName);
+            } catch (IOException e) {
+                sender.sendMessage(ChatColor.RED + "Erreur lors de la restauration du monde : " + e.getMessage());
+                e.printStackTrace();
+                return;
+            }
+
+            worldManager.loadWorld(finalWorldName).onFailure(failure -> {
+                sender.sendMessage(ChatColor.RED + "Erreur lors du rechargement : " + failure);
+            }).onSuccess(loaded -> {
+                Bukkit.broadcastMessage("§7[§c§lES§7] Le monde §a" + worldNameBroadcast + " §7vient d'être régénéré !");
+                ConsoleCommandSender console = Bukkit.getServer().getConsoleSender();
+                for (String command : commands) {
+                    Bukkit.dispatchCommand(console, command);
+                }
+            });
+        });
+
+        return true;
     }
 
-    public void copyDirectory(String sourceDirectoryLocation, String destinationDirectoryLocation) throws IOException {
-        Files.walk(Paths.get(sourceDirectoryLocation)).forEach(source -> {
-            Path destination = Paths.get(destinationDirectoryLocation,
-                    source.toString().substring(sourceDirectoryLocation.length()));
-            try {
-                Files.copy(source, destination);
-            } catch (IOException ignored) {
-            }
-        });
+    private void copyDirectory(String sourceDirectoryLocation, String destinationDirectoryLocation) throws IOException {
+        Path sourcePath = Paths.get(sourceDirectoryLocation);
+        Path destinationPath = Paths.get(destinationDirectoryLocation);
+
+        if (!Files.exists(sourcePath)) {
+            throw new IOException("Dossier source introuvable : " + sourcePath);
+        }
+
+        try (Stream<Path> paths = Files.walk(sourcePath)) {
+            paths.forEach(source -> {
+                Path destination = destinationPath.resolve(sourcePath.relativize(source));
+                try {
+                    Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
+                } catch (IOException e) {
+                    throw new UncheckedIOException(e);
+                }
+            });
+        }
     }
 
 }
