@@ -8,6 +8,7 @@ import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.ConsoleCommandSender;
+import org.bukkit.entity.Player;
 import org.mvplugins.multiverse.core.MultiverseCore;
 import org.mvplugins.multiverse.core.world.LoadedMultiverseWorld;
 import org.mvplugins.multiverse.core.world.WorldManager;
@@ -28,8 +29,6 @@ public class RegenWDCommands implements CommandExecutor {
                     + "Menu d'aide" + ChatColor.DARK_GRAY + "]" + ChatColor.GRAY + "§m------------------");
             sender.sendMessage(ChatColor.GOLD + "/regenwd end " + ChatColor.YELLOW + "pour regen l'end");
             sender.sendMessage(ChatColor.GOLD + "/regenwd nether " + ChatColor.YELLOW + "pour regen le nether");
-            sender.sendMessage(ChatColor.GOLD + "/regenwd resources " + ChatColor.YELLOW + "pour regen le monde ressource");
-            sender.sendMessage(ChatColor.GOLD + "/regenwd resources_2 " + ChatColor.YELLOW + "pour regen le monde ressource amiral");
             sender.sendMessage(ChatColor.GRAY + "§m----------------------------------------------");
         }
     }
@@ -48,7 +47,7 @@ public class RegenWDCommands implements CommandExecutor {
         String worldName;
         String worldNameBroadcast;
         String folderSave = "WorldSaves";
-        List<String> commands = new ArrayList<>(List.of("hd reload"));
+        List<String> commands = new ArrayList<>(List.of("dh reload"));
 
         switch (args[0].toLowerCase()) {
             case "end" -> {
@@ -59,14 +58,6 @@ public class RegenWDCommands implements CommandExecutor {
                 worldName = "world_nether";
                 worldNameBroadcast = "Nether";
                 commands.add("netherportal reload");
-            }
-            case "resources" -> {
-                worldName = "ressources";
-                worldNameBroadcast = "Ressources";
-            }
-            case "resources_2" -> {
-                worldName = "ressources_2";
-                worldNameBroadcast = "Ressources_2";
             }
             default -> {
                 help(sender);
@@ -80,14 +71,17 @@ public class RegenWDCommands implements CommandExecutor {
             return true;
         }
 
-
-        Bukkit.getOnlinePlayers().stream()
+        List<Player> playersToTeleport = Bukkit.getOnlinePlayers().stream()
                 .filter(player -> player.getWorld().equals(bukkitWorld))
-                .forEach(player -> {
-                    player.sendMessage("§7[§c§lES§7] Le monde se régénère ! Vous avez été téléporté sur votre île !");
-                    player.performCommand("is go");
-                });
+                .map(player -> (Player) player)
+                .toList();
 
+        for (Player player : playersToTeleport) {
+            Bukkit.getScheduler().runTask(RegenWD.get(), () -> {
+                player.sendMessage("§7[§c§lES§7] Le monde se régénère ! Vous avez été téléporté au spawn.");
+                player.performCommand("spawn");
+            });
+        }
 
         RegenWD plugin = RegenWD.get();
         MultiverseCore mvCore = plugin.getMultiverseCore();
@@ -104,38 +98,39 @@ public class RegenWDCommands implements CommandExecutor {
             return true;
         }
 
-        UnloadWorldOptions options = UnloadWorldOptions
-                .world(loadedWorld)
-                .saveBukkitWorld(true)
-                .unloadBukkitWorld(true);
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            UnloadWorldOptions options = UnloadWorldOptions
+                    .world(loadedWorld)
+                    .saveBukkitWorld(true)
+                    .unloadBukkitWorld(true);
 
-        String finalWorldName = worldName;
-        worldManager.unloadWorld(options).onFailure(failure -> {
-            sender.sendMessage(ChatColor.RED + "Échec du déchargement : " + failure);
-        }).onSuccess(success -> {
-            Bukkit.getLogger().info("Monde " + finalWorldName + " déchargé avec succès.");
+            String finalWorldName = worldName;
+            worldManager.unloadWorld(options).onFailure(failure -> {
+                sender.sendMessage(ChatColor.RED + "Échec du déchargement : " + failure);
+            }).onSuccess(success -> {
+                Bukkit.getLogger().info("Monde " + finalWorldName + " déchargé avec succès.");
 
-            File worldFolder = new File(finalWorldName);
-            try {
-                FileUtils.deleteDirectory(worldFolder);
-                worldFolder.mkdir();
-                copyDirectory(folderSave + File.separator + finalWorldName, finalWorldName);
-            } catch (IOException e) {
-                sender.sendMessage(ChatColor.RED + "Erreur lors de la restauration du monde : " + e.getMessage());
-                e.printStackTrace();
-                return;
-            }
-
-            worldManager.loadWorld(finalWorldName).onFailure(failure -> {
-                sender.sendMessage(ChatColor.RED + "Erreur lors du rechargement : " + failure);
-            }).onSuccess(loaded -> {
-                Bukkit.broadcastMessage("§7[§c§lES§7] Le monde §a" + worldNameBroadcast + " §7vient d'être régénéré !");
-                ConsoleCommandSender console = Bukkit.getServer().getConsoleSender();
-                for (String command : commands) {
-                    Bukkit.dispatchCommand(console, command);
+                File worldFolder = new File(finalWorldName);
+                try {
+                    FileUtils.cleanDirectory(worldFolder);
+                    copyDirectory(folderSave + File.separator + finalWorldName, finalWorldName);
+                } catch (IOException e) {
+                    sender.sendMessage(ChatColor.RED + "Erreur lors de la restauration du monde : " + e.getMessage());
+                    e.printStackTrace();
+                    return;
                 }
+
+                worldManager.loadWorld(finalWorldName).onFailure(failure -> {
+                    sender.sendMessage(ChatColor.RED + "Erreur lors du rechargement : " + failure);
+                }).onSuccess(loaded -> {
+                    Bukkit.broadcastMessage("§7[§c§lES§7] Le monde §a" + worldNameBroadcast + " §7vient d'être régénéré !");
+                    ConsoleCommandSender console = Bukkit.getServer().getConsoleSender();
+                    for (String command : commands) {
+                        Bukkit.dispatchCommand(console, command);
+                    }
+                });
             });
-        });
+        }, 20L);
 
         return true;
     }
@@ -148,16 +143,31 @@ public class RegenWDCommands implements CommandExecutor {
             throw new IOException("Dossier source introuvable : " + sourcePath);
         }
 
+        try (Stream<Path> files = Files.walk(destinationPath)) {
+            files.sorted(Comparator.reverseOrder())
+                    .filter(path -> !path.equals(destinationPath))
+                    .forEach(path -> {
+                        try {
+                            Files.deleteIfExists(path);
+                        } catch (IOException e) {
+                            throw new UncheckedIOException("Impossible de supprimer : " + path, e);
+                        }
+                    });
+        }
+
         try (Stream<Path> paths = Files.walk(sourcePath)) {
             paths.forEach(source -> {
                 Path destination = destinationPath.resolve(sourcePath.relativize(source));
                 try {
-                    Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
+                    if (Files.isDirectory(source)) {
+                        Files.createDirectories(destination);
+                    } else {
+                        Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
+                    }
                 } catch (IOException e) {
-                    throw new UncheckedIOException(e);
+                    throw new UncheckedIOException("Erreur lors de la copie de " + source, e);
                 }
             });
         }
     }
-
 }
