@@ -90,7 +90,7 @@ public class RegenWDCommands implements CommandExecutor {
 
         FileRestoreTarget restoreTarget = findRestoreTarget(target);
         if (restoreTarget == null) {
-            sender.sendMessage(error("Dossier source introuvable : " + SAVE_FOLDER + "/" + target.dimensionFolder()));
+            sender.sendMessage(error("Dossier source introuvable : " + sourcePath(target)));
             return true;
         }
 
@@ -131,11 +131,15 @@ public class RegenWDCommands implements CommandExecutor {
     }
 
     private Path findSourcePath(WorldTarget target) {
-        Path directDimensionSource = Paths.get(SAVE_FOLDER, target.dimensionFolder());
+        Path directDimensionSource = sourcePath(target);
 
         if (Files.isDirectory(directDimensionSource)) return directDimensionSource;
 
         return null;
+    }
+
+    private Path sourcePath(WorldTarget target) {
+        return RegenWD.get().getDataFolder().toPath().resolve(SAVE_FOLDER).resolve(target.dimensionFolder());
     }
 
     private Path findDestinationPath(WorldTarget target) {

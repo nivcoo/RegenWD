@@ -5,6 +5,8 @@ import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.mvplugins.multiverse.core.MultiverseCore;
 
+import java.io.File;
+
 
 public class RegenWD extends JavaPlugin {
 
@@ -16,6 +18,7 @@ public class RegenWD extends JavaPlugin {
     public void onEnable() {
         INSTANCE = this;
         getCommand("regenwd").setExecutor(new RegenWDCommands());
+        new File(getDataFolder(), "DimensionSaves").mkdirs();
 
         multiverseCore = (MultiverseCore) Bukkit.getServer().getPluginManager().getPlugin("Multiverse-Core");
 
